@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: hostelops_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespw
+      POSTGRES_DB: hostelops
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - hostel_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hostelops_backend
+    environment:
+      - PGUSER=postgres
+      - PGPASSWORD=postgrespw
+      - PGHOST=db
+      - PGPORT=5432
+      - PGDATABASE=hostelops
+      - PORT=5000
+      - JWT_SECRET=supersecretjwtkeyishere
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - hostel_net
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ./nginx/Dockerfile
+    container_name: hostelops_nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - hostel_net
+
+networks:
+  hostel_net:
+    driver: bridge
+
+volumes:
+  pgdata:
